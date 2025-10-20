@@ -32,7 +32,7 @@
     <div class="max-w-4xl mx-auto">
         <header class="text-center mb-10">
             <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2">Policy Analyst Companion (ATS/OOSC)</h1>
-            <p class="text-lg text-gray-600">Platform Gemini untuk Analisis Isu Anak Tidak Sekolah (OOSC)</p>
+            <p class="text-lg text-gray-600">Platform Gemini untuk Analisis Isu Anak Tidak Sekolah (OOSC) | <i>Gemini Platform for Out-of-School Children Analysis</i></p>
         </header>
 
         <div class="bg-white p-6 md:p-8 rounded-xl container-card">
@@ -40,11 +40,15 @@
             <h2 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
                 ✨ Hasilkan Analisis Kebijakan Cepat
             </h2>
-            <p class="text-sm text-gray-600 mb-4">Input pertanyaan Anda terkait ATS/OOSC. Sistem akan menghasilkan analisis berbasis tiga pilar: situasi nasional, praktik global, dan rekomendasi berbasis data.</p>
+            <p class="text-sm text-gray-600 mb-4">
+                Input pertanyaan Anda terkait ATS/OOSC. Sistem akan menghasilkan analisis berbasis tiga pilar: situasi nasional, praktik global, dan rekomendasi berbasis data.
+                <br>
+                <i>Input your OOSC/ATS related query. The system will generate analysis based on three pillars: national situation, global practice, and data-driven recommendations.</i>
+            </p>
             
             <textarea id="policyPrompt" rows="4" 
                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-700 placeholder-gray-400" 
-                      placeholder="Contoh: Apa saja isu strategis yang dihadapi dalam penanganan Anak Tidak Sekolah di kawasan tertinggal, terdepan, dan terluar?"
+                      placeholder="Contoh: Apa saja isu strategis yang dihadapi dalam penanganan Anak Tidak Sekolah di kawasan tertinggal, terdepan, dan terluar? | Example: What are the strategic issues faced in handling Out-of-School Children in underdeveloped, frontier, and remote areas?"
             ></textarea>
 
             <button onclick="generateAnalysis()" id="generateButton" 
@@ -210,3 +214,4 @@
     </script>
 </body>
 </html>
+
