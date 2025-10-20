@@ -145,14 +145,19 @@
                 Gunakan bahasa Indonesia yang formal, lugas, dan terstruktur. Batasi keseluruhan balasan menjadi maksimum empat paragraf pendek.
             `;
 
+            // --- PERHATIAN PENTING: PASTIKAN KUNCI API ANDA SUDAH DISINI ---
+            // Ganti YOUR_GEMINI_API_KEY_HERE dengan Kunci API Gemini Anda.
             const apiKey = "AIzaSyCTbEcHvg-m0MxbzAxuTlHEw7DN93nuEXA"; 
+            
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
+            // *** Perbaikan Payload untuk Mengatasi Error 400 ***
             const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
-                tools: [{ "google_search": {} }], // Use Google Search for grounding
                 config: {
-                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                    // Masukkan system instruction dan tools ke dalam satu objek config
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    tools: [{ "google_search": {} }] 
                 }
             };
             
@@ -177,15 +182,16 @@
                 }
 
                 if (!response.ok) {
+                    // Tangkap error spesifik 400 di sini
                     throw new Error(`API call failed after several retries: ${response.status} ${response.statusText}`);
                 }
 
                 const result = await response.json();
-                const candidate = result.candidates?.[0]; // Perbaikan 1: Menggunakan [0] untuk elemen pertama array kandidat.
+                const candidate = result.candidates?.[0]; 
 
-                if (candidate && candidate.content?.parts?.[0]?.text) { // Perbaikan 2: Memperbaiki rantai optional chaining.
-                    const text = candidate.content.parts[0].text; // Perbaikan 3: Mengakses elemen array parts[0].
-                    let sources = []; // Perbaikan 4: Inisialisasi variabel sources.
+                if (candidate && candidate.content?.parts?.[0]?.text) { 
+                    const text = candidate.content.parts[0].text; 
+                    let sources = []; 
                     const groundingMetadata = candidate.groundingMetadata;
                     
                     if (groundingMetadata && groundingMetadata.groundingAttributions) {
@@ -206,7 +212,6 @@
                     if (sources.length > 0) {
                         let sourcesHtml = '<strong>Sumber Informasi:</strong><ul>';
                         sources.forEach((source, index) => {
-                            // Perbaikan 5: Menggunakan operator OR logis (||) yang benar untuk fallback teks 'Link'.
                             sourcesHtml += `<li><a href="${source.uri}" target="_blank" class="text-blue-500 hover:text-blue-700 truncate inline-block max-w-full">${source.title || 'Link'}</a></li>`;
                         });
                         sourcesHtml += '</ul>';
@@ -233,5 +238,4 @@
         }
     </script>
 </body>
-
 </html>
