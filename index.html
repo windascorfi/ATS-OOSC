@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Pendamping Analis Kebijakan ATS/OOSC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+       .container-card {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+       .loading-animation {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2">Policy Analyst Companion (ATS/OOSC)</h1>
+            <p class="text-lg text-gray-600">Platform Gemini untuk Analisis Isu Anak Tidak Sekolah (OOSC)</p>
+        </header>
+
+        <div class="bg-white p-6 md:p-8 rounded-xl container-card">
+            
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                ✨ Hasilkan Analisis Kebijakan Cepat
+            </h2>
+            <p class="text-sm text-gray-600 mb-4">Input pertanyaan Anda terkait ATS/OOSC. Sistem akan menghasilkan analisis berbasis tiga pilar: situasi nasional, praktik global, dan rekomendasi berbasis data.</p>
+            
+            <textarea id="policyPrompt" rows="4" 
+                      class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-700 placeholder-gray-400" 
+                      placeholder="Contoh: Apa saja isu strategis yang dihadapi dalam penanganan Anak Tidak Sekolah di kawasan tertinggal, terdepan, dan terluar?"
+            ></textarea>
+
+            <button onclick="generateAnalysis()" id="generateButton" 
+                    class="mt-4 w-full md:w-auto px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition duration-150 flex items-center justify-center disabled:opacity-50">
+                <span id="buttonText">✨ Hasilkan Analisis Kebijakan</span>
+                <div id="loadingIndicator" class="loading-animation ml-3 hidden"></div>
+            </button>
+
+            <div class="mt-8 pt-6 border-t border-gray-200">
+                <h3 class="text-xl font-bold text-gray-800 mb-4" id="resultTitle" style="display: none;">Hasil Analisis</h3>
+                <div id="analysisOutput" class="space-y-4 text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-500 italic">Analisis akan muncul di sini setelah Anda memasukkan prompt dan menekan tombol.</p>
+                </div>
+                
+                <div id="sourcesOutput" class="mt-4 text-xs text-gray-500">
+                    </div>
+                
+                <div id="errorOutput" class="mt-4 text-sm text-red-600 font-semibold" style="display: none;">
+                    </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Variabel global wajib
+        const appId = typeof __app_id!== 'undefined'? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config!== 'undefined'? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token!== 'undefined'? __initial_auth_token : null;
+
+        let db, auth;
+
+        // Inisialisasi dan Autentikasi Firebase (Wajib untuk lingkungan ini)
+        if (Object.keys(firebaseConfig).length > 0) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            async function authenticate() {
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    console.log("Firebase Auth successful. User ID:", auth.currentUser?.uid);
+                } catch (error) {
+                    console.error("Firebase Authentication Error:", error);
+                }
+            }
+            authenticate();
+        } else {
+             console.warn("Firebase config not available. Proceeding without database features.");
+        }
+
+        // --- CORE GEMINI LLM API FUNCTION ---
+        
+        window.generateAnalysis = async function() {
+            const userQuery = document.getElementById('policyPrompt').value.trim();
+            const analysisOutput = document.getElementById('analysisOutput');
+            const sourcesOutput = document.getElementById('sourcesOutput');
+            const errorOutput = document.getElementById('errorOutput');
+            const resultTitle = document.getElementById('resultTitle');
+            const generateButton = document.getElementById('generateButton');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const buttonText = document.getElementById('buttonText');
+
+            if (userQuery === "") {
+                errorOutput.textContent = "Mohon masukkan topik analisis Anda.";
+                errorOutput.style.display = 'block';
+                return;
+            }
+
+            // UI State: Loading
+            generateButton.disabled = true;
+            buttonText.textContent = "Menganalisis...";
+            loadingIndicator.classList.remove('hidden');
+            analysisOutput.innerHTML = '<p class="text-gray-500 italic">Sedang memproses analisis kebijakan. Harap tunggu...</p>';
+            sourcesOutput.innerHTML = '';
+            errorOutput.style.display = 'none';
+            resultTitle.style.display = 'none';
+
+
+            // SYSTEM PROMPT telah dikonfirmasi dan digeneralisasi sesuai instruksi pengguna.
+            const systemPrompt = `
+                Kamu adalah seorang analis di bidang pendidikan yang fokus pada penanganan Out-of-School Children (OOSC) atau Anak Tidak Sekolah (ATS). 
+                Tugasmu adalah memberikan respon dan masukan berdasarkan kondisi riil di Indonesia, serta membandingkannya dengan pencapaian atau praktik terbaik negara lain (termasuk Asia Tenggara, Eropa, atau wilayah lain yang relevan), dengan tetap fokus pada pencapaian 'Indonesia Emas 2045' dan mendukung Sustainable Development Goal (SDG) 4 (Pendidikan Berkualitas) dan SDG 10 (Mengurangi Ketimpangan).
+
+                Setiap tanggapan harus mencakup tiga komponen yang berbeda: 
+                (i) Analisis situasi riil di Indonesia (gunakan data konkret jika tersedia). 
+                (ii) Perbandingan dengan praktik terbaik atau pencapaian negara lain yang relevan (Pilih negara/wilayah yang paling kontekstual). 
+                (iii) Rekomendasi/Masukan yang mendukung 'Indonesia Emas 2045' dan SDG 4/10. 
+                
+                Gunakan bahasa Indonesia yang formal, lugas, dan terstruktur. Batasi keseluruhan balasan menjadi maksimum empat paragraf pendek.
+            `;
+
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                tools: [{ "google_search": {} }], // Use Google Search for grounding
+                config: {
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                }
+            };
+            
+            let response;
+            try {
+                // Implement exponential backoff for retries
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        break; // Success
+                    }
+
+                    // Retry logic
+                    const delay = Math.pow(2, attempt) * 1000;
+                    console.warn(`Attempt ${attempt + 1} failed. Retrying in ${delay / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+
+                if (!response.ok) {
+                    throw new Error(`API call failed after several retries: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0]; // Perbaikan 1: Menggunakan [0] untuk elemen pertama array kandidat.
+
+                if (candidate && candidate.content?.parts?.[0]?.text) { // Perbaikan 2: Memperbaiki rantai optional chaining.
+                    const text = candidate.content.parts[0].text; // Perbaikan 3: Mengakses elemen array parts[0].
+                    let sources = []; // Perbaikan 4: Inisialisasi variabel sources.
+                    const groundingMetadata = candidate.groundingMetadata;
+                    
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                           .map(attribution => ({
+                                uri: attribution.web?.uri,
+                                title: attribution.web?.title,
+                            }))
+                           .filter(source => source.uri && source.title);
+                    }
+
+                    // Display text
+                    const formattedText = text.replace(/\n/g, '<br><br>');
+                    analysisOutput.innerHTML = formattedText;
+                    resultTitle.style.display = 'block';
+
+                    // Display sources
+                    if (sources.length > 0) {
+                        let sourcesHtml = '<strong>Sumber Informasi:</strong><ul>';
+                        sources.forEach((source, index) => {
+                            // Perbaikan 5: Menggunakan operator OR logis (||) yang benar untuk fallback teks 'Link'.
+                            sourcesHtml += `<li><a href="${source.uri}" target="_blank" class="text-blue-500 hover:text-blue-700 truncate inline-block max-w-full">${source.title || 'Link'}</a></li>`;
+                        });
+                        sourcesHtml += '</ul>';
+                        sourcesOutput.innerHTML = sourcesHtml;
+                    }
+
+                } else {
+                    throw new Error("Response content is empty or malformed.");
+                }
+
+            } catch (error) {
+                console.error("Error during Gemini API call:", error);
+                errorOutput.textContent = `Terjadi kesalahan saat memproses permintaan: ${error.message}.`;
+                errorOutput.style.display = 'block';
+                analysisOutput.innerHTML = '';
+                sourcesOutput.innerHTML = '';
+
+            } finally {
+                // UI State: Reset
+                generateButton.disabled = false;
+                buttonText.textContent = "✨ Hasilkan Analisis Kebijakan";
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
