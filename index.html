@@ -111,19 +111,15 @@
                 Gunakan bahasa Indonesia yang formal, lugas, dan terstruktur. Batasi keseluruhan balasan menjadi maksimum empat paragraf pendek.
             `;
 
-            // --- PERHATIAN PENTING: PASTIKAN KUNCI API ANDA SUDAH DISINI ---
-            // Kunci API Anda yang terdeteksi adalah: AIzaSyCTbEcHvg-m0MxbzAxuTlHEw7DN93nuEXA
-            // Jika Anda ingin menggunakan kunci lain, ganti di bawah ini.
+            // Kunci API Anda yang terdeteksi: AIzaSyCTbEcHvg-m0MxbzAxuTlHEw7DN93nuEXA
             const apiKey = "AIzaSyCTbEcHvg-m0MxbzAxuTlHEw7DN93nuEXA"; 
             
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            // Mengubah nama model menjadi gemini-2.5-flash untuk stabilitas yang lebih baik
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-            // *** PERBAIKAN STRUKTUR PAYLOAD UNTUK STABILITAS API ***
+            // Perbaikan Struktur Payload (Root Level)
             const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
-                
-                // Pindahkan System Instruction dan Tools ke root level,
-                // dan gunakan generationConfig untuk model specific settings.
                 systemInstruction: { parts: [{ text: systemPrompt }] },
                 tools: [{ "google_search": {} }],
             };
@@ -134,7 +130,9 @@
                 for (let attempt = 0; attempt < 3; attempt++) {
                     response = await fetch(apiUrl, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json' 
+                        },
                         body: JSON.stringify(payload)
                     });
 
@@ -149,6 +147,7 @@
                 }
 
                 if (!response.ok) {
+                    // Tangkap error spesifik 400
                     throw new Error(`API call failed after several retries: ${response.status} ${response.statusText}`);
                 }
 
@@ -185,12 +184,18 @@
                     }
 
                 } else {
+                    // Cek apakah ada 'promptFeedback' yang memblokir
+                    const promptFeedback = result.promptFeedback;
+                    if (promptFeedback && promptFeedback.blockReason) {
+                        throw new Error(`Permintaan diblokir karena: ${promptFeedback.blockReason}. Coba pertanyaan lain.`);
+                    }
+
                     throw new Error("Response content is empty or malformed.");
                 }
 
             } catch (error) {
                 console.error("Error during Gemini API call:", error);
-                errorOutput.textContent = `Terjadi kesalahan saat memproses permintaan: ${error.message}. Coba refresh laman.`;
+                errorOutput.textContent = `Terjadi kesalahan saat memproses permintaan: ${error.message}.`;
                 errorOutput.style.display = 'block';
                 analysisOutput.innerHTML = '';
                 sourcesOutput.innerHTML = '';
