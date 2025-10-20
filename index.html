@@ -69,41 +69,7 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Variabel global wajib
-        const appId = typeof __app_id!== 'undefined'? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config!== 'undefined'? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token!== 'undefined'? __initial_auth_token : null;
-
-        let db, auth;
-
-        // Inisialisasi dan Autentikasi Firebase (Wajib untuk lingkungan ini)
-        if (Object.keys(firebaseConfig).length > 0) {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-
-            async function authenticate() {
-                try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                    console.log("Firebase Auth successful. User ID:", auth.currentUser?.uid);
-                } catch (error) {
-                    console.error("Firebase Authentication Error:", error);
-                }
-            }
-            authenticate();
-        } else {
-             console.warn("Firebase config not available. Proceeding without database features.");
-        }
-
+    <script>
         // --- CORE GEMINI LLM API FUNCTION ---
         
         window.generateAnalysis = async function() {
@@ -132,7 +98,7 @@
             resultTitle.style.display = 'none';
 
 
-            // SYSTEM PROMPT telah dikonfirmasi dan digeneralisasi sesuai instruksi pengguna.
+            // SYSTEM PROMPT
             const systemPrompt = `
                 Kamu adalah seorang analis di bidang pendidikan yang fokus pada penanganan Out-of-School Children (OOSC) atau Anak Tidak Sekolah (ATS). 
                 Tugasmu adalah memberikan respon dan masukan berdasarkan kondisi riil di Indonesia, serta membandingkannya dengan pencapaian atau praktik terbaik negara lain (termasuk Asia Tenggara, Eropa, atau wilayah lain yang relevan), dengan tetap fokus pada pencapaian 'Indonesia Emas 2045' dan mendukung Sustainable Development Goal (SDG) 4 (Pendidikan Berkualitas) dan SDG 10 (Mengurangi Ketimpangan).
@@ -146,19 +112,20 @@
             `;
 
             // --- PERHATIAN PENTING: PASTIKAN KUNCI API ANDA SUDAH DISINI ---
-            // Ganti YOUR_GEMINI_API_KEY_HERE dengan Kunci API Gemini Anda.
+            // Kunci API Anda yang terdeteksi adalah: AIzaSyCTbEcHvg-m0MxbzAxuTlHEw7DN93nuEXA
+            // Jika Anda ingin menggunakan kunci lain, ganti di bawah ini.
             const apiKey = "AIzaSyCTbEcHvg-m0MxbzAxuTlHEw7DN93nuEXA"; 
             
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-            // *** Perbaikan Payload untuk Mengatasi Error 400 ***
+            // *** PERBAIKAN STRUKTUR PAYLOAD UNTUK STABILITAS API ***
             const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
-                config: {
-                    // Masukkan system instruction dan tools ke dalam satu objek config
-                    systemInstruction: { parts: [{ text: systemPrompt }] },
-                    tools: [{ "google_search": {} }] 
-                }
+                
+                // Pindahkan System Instruction dan Tools ke root level,
+                // dan gunakan generationConfig untuk model specific settings.
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                tools: [{ "google_search": {} }],
             };
             
             let response;
@@ -182,7 +149,6 @@
                 }
 
                 if (!response.ok) {
-                    // Tangkap error spesifik 400 di sini
                     throw new Error(`API call failed after several retries: ${response.status} ${response.statusText}`);
                 }
 
@@ -224,7 +190,7 @@
 
             } catch (error) {
                 console.error("Error during Gemini API call:", error);
-                errorOutput.textContent = `Terjadi kesalahan saat memproses permintaan: ${error.message}.`;
+                errorOutput.textContent = `Terjadi kesalahan saat memproses permintaan: ${error.message}. Coba refresh laman.`;
                 errorOutput.style.display = 'block';
                 analysisOutput.innerHTML = '';
                 sourcesOutput.innerHTML = '';
